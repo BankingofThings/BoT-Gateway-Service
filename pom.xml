@@ -9,7 +9,7 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.finn.bot</groupId>
-	<artifactId>edge-gateway-service</artifactId>
+	<artifactId>BoT-Gateway-Service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>BoT-Gateway-Service</name>
 	<description>Edge Gateway web service for Finn IoT Devices</description>
