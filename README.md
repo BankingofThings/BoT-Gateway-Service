@@ -2,7 +2,7 @@
 
 # BoT-Gateway-Service
   Edge Gateway Module service for Finn Banking of Things to accept remote requests, process the requests and route to proper Finn device within the local network. This module is designed to be run on edge system and the service gets exposed to outside world either through Ngrok tool or router port forwarding mechanism. The default port is 3001 on which the service gets started to be accessed by remote clients.
-
+  
 ## Prerequisites
 - Hardware Devices
   - Raspberry Pi Zero / 3 / 4
@@ -30,6 +30,9 @@
 ## Supported End Points
   - End point to retrieve QrCode for the device - `/qrcode`
   - End point to post as webhook in to remote client/service - `/webhook`
+
+### Flow Diagram
+![readme-header](Voice-enabled-Finn-flow.png)
 
 ## Contributing
 Any improvement to the FINN SDK are very much welcome! Our software is open-source and we believe your input can help create a lively community and the best version of FINN. We’ve already implemented much of the feedback given to us by community members and will continue to do so. Join them by contributing to the SDK or by contributing to the documentation.
