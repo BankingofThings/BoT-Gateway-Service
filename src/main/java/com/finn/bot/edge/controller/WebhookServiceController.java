@@ -16,6 +16,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -30,18 +31,26 @@ public class WebhookServiceController {
 	public static enum SVM_Options { coffee, tea, milk, coke, pepsi, fanta};
 	
 	//IP Address and Port number details for devices Webservice
-	private static final String SVM_IP_ADDRESS = "192.168.1.5";
+	private static final String SVM1_IP_ADDRESS = "192.168.1.5";
+	private static final String SVM2_IP_ADDRESS = "192.168.1.11";
 	private static final int PORT_NUMBER = 3001;
 	
-	//Smart Vending Machine URLs details
-	private static final String SVM_Actions_URL = "http://" + SVM_IP_ADDRESS + ":" + PORT_NUMBER + "/actions";
-	private static final String SVM_QRCode_URL = "http://" + SVM_IP_ADDRESS + ":" + PORT_NUMBER + "/qrcode";
-	private static final String SVM_Pair_URL = "http://" + SVM_IP_ADDRESS + ":" + PORT_NUMBER + "/pairing";
+	//Smart Vending Machine-1 URLs details
+	private static final String SVM1_Actions_URL = "http://" + SVM1_IP_ADDRESS + ":" + PORT_NUMBER + "/actions";
+	private static final String SVM1_QRCode_URL = "http://" + SVM1_IP_ADDRESS + ":" + PORT_NUMBER + "/qrcode";
+	private static final String SVM1_Pair_URL = "http://" + SVM1_IP_ADDRESS + ":" + PORT_NUMBER + "/pairing";
+	
+	//Smart Vending Machine-2 URLs details
+	private static final String SVM2_Actions_URL = "http://" + SVM2_IP_ADDRESS + ":" + PORT_NUMBER + "/actions";
+	private static final String SVM2_QRCode_URL = "http://" + SVM2_IP_ADDRESS + ":" + PORT_NUMBER + "/qrcode";
+	private static final String SVM2_Pair_URL = "http://" + SVM2_IP_ADDRESS + ":" + PORT_NUMBER + "/pairing";
 		
-	//Smart Vending Machine actions details
+	//Smart Vending Machine-1 actions details
 	private static final String SVM_Coffee_ActionID = "902642BD-802D-4BCB-9F0F-BC192A70915D";
 	private static final String SVM_Tea_ActionID = "63636817-6AFF-465B-B04D-1A21A750A515";
 	private static final String SVM_Milk_ActionID = "C8384E76-74CE-4DC8-8EFD-6A455BAA3786";
+	
+	//Smart Vending Machine-2 actions details
 	private static final String SVM_Coke_ActionID = "03AC499F-E07E-4A7C-91F5-83ECEA8111AC";
 	private static final String SVM_Pepsi_ActionID = "8AA95AC9-DB6A-4253-BCF0-154E8EE37584";
 	private static final String SVM_Fanta_ActionID = "485B3172-DB36-4DFB-98F9-EC947A10D823";
@@ -68,11 +77,12 @@ public class WebhookServiceController {
                 .body("BoT Webhook Service: \n Supported End Points: /webhook");
     }
 
-	@RequestMapping(value = "/qrcode", method = RequestMethod.GET, produces = MediaType.IMAGE_PNG_VALUE)
-    public ResponseEntity<byte[]> getQRCodeBytes() throws IOException {
-
+	@RequestMapping(path = "/qrcode/{device}", method = RequestMethod.GET, produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> getQRCodeBytes(@PathVariable("device") String device) throws IOException {
+    	LOGGER.info("Received request to get QRCode from device - " + device);
     	CloseableHttpClient httpclient = HttpClients.createDefault();
     	byte [] qrcodeBytes = null;
+    	String SVM_QRCode_URL = device.equalsIgnoreCase("svm1")?SVM1_QRCode_URL:SVM2_QRCode_URL;
 		try {
 			//Instantiate HTTP Get
             HttpGet httpget = new HttpGet(SVM_QRCode_URL);
@@ -110,30 +120,36 @@ public class WebhookServiceController {
 	public ResponseEntity<String> processWebhookRequest(@RequestBody String jsonActionString) throws IOException{
 		//LOGGER.config(jsonActionString);
 		String responseBody = "";
-		if(jsonActionString.contains("\"displayName\": \"configure\"")) {
+		if(jsonActionString.contains("\"displayName\": \"configure_svm1\"")) {
 			LOGGER.info("Received request to pair and activate device");
-			if (pairAndActivateSVM())
+			if (pairAndActivateSVM(SVM1_Pair_URL))
 				responseBody = buildWebhookResponseString("Device Pairing Successfull");
 			else 
 				responseBody = buildWebhookResponseString("Device Pairing Failed");
+		 } else if(jsonActionString.contains("\"displayName\": \"configure_svm2\"")) {
+				LOGGER.info("Received request to pair and activate device");
+				if (pairAndActivateSVM(SVM2_Pair_URL))
+					responseBody = buildWebhookResponseString("Device Pairing Successfull");
+				else 
+					responseBody = buildWebhookResponseString("Device Pairing Failed");
 		 } else if(jsonActionString.contains("\"displayName\": \"coffee\"")) {
 			LOGGER.info("Received order for coffee");
-			responseBody = placeOrderAndTriggerPayment(SVM_Options.coffee);
+			responseBody = placeOrderAndTriggerPayment(SVM2_Actions_URL,SVM_Options.coffee);
 		 } else if(jsonActionString.contains("\"displayName\": \"tea\"")) {
 		    LOGGER.info("Received order for tea");
-		    responseBody = placeOrderAndTriggerPayment(SVM_Options.tea);
+		    responseBody = placeOrderAndTriggerPayment(SVM2_Actions_URL,SVM_Options.tea);
 		 } else if(jsonActionString.contains("\"displayName\": \"milk\"")) { 
 		    LOGGER.info("Received order for milk");
-		    responseBody = placeOrderAndTriggerPayment(SVM_Options.milk);
+		    responseBody = placeOrderAndTriggerPayment(SVM2_Actions_URL,SVM_Options.milk);
 		 } else if(jsonActionString.contains("\"displayName\": \"coke\"")) { 
 		    LOGGER.info("Received order for coke");
-		    responseBody = placeOrderAndTriggerPayment(SVM_Options.coke);
+		    responseBody = placeOrderAndTriggerPayment(SVM1_Actions_URL,SVM_Options.coke);
 		 } else if(jsonActionString.contains("\"displayName\": \"pepsi\"")) {
 		    LOGGER.info("Received order for pepsi");
-		    responseBody = placeOrderAndTriggerPayment(SVM_Options.pepsi);
+		    responseBody = placeOrderAndTriggerPayment(SVM1_Actions_URL,SVM_Options.pepsi);
 		 } else if(jsonActionString.contains("\"displayName\": \"fanta\"")) {
 		    LOGGER.info("Received order for fanta");
-		    responseBody = placeOrderAndTriggerPayment(SVM_Options.fanta);
+		    responseBody = placeOrderAndTriggerPayment(SVM1_Actions_URL,SVM_Options.fanta);
 		 } else {
 		    LOGGER.config("Received order for nothing");
 		    responseBody = buildWebhookResponseString("Nothing");
@@ -147,13 +163,13 @@ public class WebhookServiceController {
 	}
 	
 	//Static method to pair and activate the device
-	private Boolean pairAndActivateSVM() throws IOException {
+	private Boolean pairAndActivateSVM(final String URL) throws IOException {
 		CloseableHttpClient httpclient = HttpClients.createDefault();
 		String responseBody = "";
 		Boolean pairingStatus = false;
 		try {
 			//Instantiate HTTP Get
-            HttpGet httpget = new HttpGet(SVM_Pair_URL);
+            HttpGet httpget = new HttpGet(URL);
             
             //Execute HTTP GET
             String requestStr = String.format("Executing request %s" , httpget.getRequestLine());
@@ -171,7 +187,7 @@ public class WebhookServiceController {
             }
 		}
 		catch(Exception e){
-			String exceptionMsg = String.format("Exception caught during performing GET Call with URL: %s " , SVM_QRCode_URL);
+			String exceptionMsg = String.format("Exception caught during performing GET Call with URL: %s " , SVM1_Pair_URL);
 			LOGGER.severe(exceptionMsg);
 			LOGGER.severe(ExceptionUtils.getStackTrace(e));
 		}
@@ -182,79 +198,79 @@ public class WebhookServiceController {
 	}
 	
 	//Static method to place given order and initiate payment, return response string
-	private String placeOrderAndTriggerPayment(final SVM_Options action) throws IOException {
+	private String placeOrderAndTriggerPayment(final String URL, final SVM_Options action) throws IOException {
 		String responseString = "";
 		Integer paymentCounter = 0;
 		//Identify placed order, trigger payment and send back response
 		switch(action) {
 			case coffee:  	//Place order for Coffee, needs to be handled by Vending machine
 							//Trigger payment for coffee
-							if(triggerPayment(SVM_Coffee_ActionID)) {
+							if(triggerPayment(URL,SVM_Coffee_ActionID)) {
 								paymentCounter = SVM_PAYMENTS.get(SVM_Options.coffee);
 								SVM_PAYMENTS.put(SVM_Options.coffee, ++paymentCounter);
 								LOGGER.info("Total payments triggered for Coffee: " +SVM_PAYMENTS.get(SVM_Options.coffee));
 								responseString = buildWebhookResponseString("Coffee Successfull");
-								new ProcessPushNitifications(SVM_Options.coffee).start();
+								new ProcessPushNitifications(URL,SVM_Options.coffee).start();
 							} else {
 								responseString = buildWebhookResponseString("Coffee Failed");
 							}
 							break;
 			case tea:  		//Place order for Tea, needs to be handled by Vending machine
 							//Trigger payment for tea
-							if(triggerPayment(SVM_Tea_ActionID)) {
+							if(triggerPayment(URL,SVM_Tea_ActionID)) {
 								paymentCounter = SVM_PAYMENTS.get(SVM_Options.tea);
 								SVM_PAYMENTS.put(SVM_Options.tea, ++paymentCounter);
 								LOGGER.info("Total payments triggered for Tea: " +SVM_PAYMENTS.get(SVM_Options.tea));
 								responseString = buildWebhookResponseString("Tea Successfull");
-								new ProcessPushNitifications(SVM_Options.tea).start();
+								new ProcessPushNitifications(URL,SVM_Options.tea).start();
 							} else {
 								responseString = buildWebhookResponseString("Tea Failed");
 							}
 							break;
 			case milk:  	//Place order for Milk, needs to be handled by Vending machine
 							//Trigger payment for milk
-							if(triggerPayment(SVM_Milk_ActionID)) {
+							if(triggerPayment(URL,SVM_Milk_ActionID)) {
 								paymentCounter = SVM_PAYMENTS.get(SVM_Options.milk);
 								SVM_PAYMENTS.put(SVM_Options.milk, ++paymentCounter);
 								LOGGER.info("Total payments triggered for Milk: " +SVM_PAYMENTS.get(SVM_Options.milk));
 								responseString = buildWebhookResponseString("Milk Successfull");
-								new ProcessPushNitifications(SVM_Options.milk).start();
+								new ProcessPushNitifications(URL,SVM_Options.milk).start();
 							} else {
 								responseString = buildWebhookResponseString("Milk Failed");
 							}
 							break;
 			case coke:  	//Place order for Coke, needs to be handled by Vending machine
 							//Trigger payment for coke
-							if(triggerPayment(SVM_Coke_ActionID)) {
+							if(triggerPayment(URL,SVM_Coke_ActionID)) {
 								paymentCounter = SVM_PAYMENTS.get(SVM_Options.coke);
 								SVM_PAYMENTS.put(SVM_Options.coke, ++paymentCounter);
 								LOGGER.info("Total payments triggered for Coke: " +SVM_PAYMENTS.get(SVM_Options.coke));
 								responseString = buildWebhookResponseString("Coke Successfull");
-								new ProcessPushNitifications(SVM_Options.coke).start();
+								new ProcessPushNitifications(URL,SVM_Options.coke).start();
 							} else {
 								responseString = buildWebhookResponseString("Coke Failed");
 							}
 							break;
 			case pepsi:  	//Place order for Pepsi, needs to be handled by Vending machine
 							//Trigger payment for pepsi
-							if(triggerPayment(SVM_Pepsi_ActionID)) {
+							if(triggerPayment(URL,SVM_Pepsi_ActionID)) {
 								paymentCounter = SVM_PAYMENTS.get(SVM_Options.pepsi);
 								SVM_PAYMENTS.put(SVM_Options.pepsi, ++paymentCounter);
 								LOGGER.info("Total payments triggered for Pepsi: " +SVM_PAYMENTS.get(SVM_Options.pepsi));
 								responseString = buildWebhookResponseString("Pepsi Successfull");
-								new ProcessPushNitifications(SVM_Options.pepsi).start();
+								new ProcessPushNitifications(URL,SVM_Options.pepsi).start();
 							} else {
 								responseString = buildWebhookResponseString("Pepsi Failed");
 							}
 							break;
 			case fanta:  	//Place order for Fanta, needs to be handled by Vending machine
 							//Trigger payment for fanta
-							if(triggerPayment(SVM_Fanta_ActionID)) {
+							if(triggerPayment(URL,SVM_Fanta_ActionID)) {
 								paymentCounter = SVM_PAYMENTS.get(SVM_Options.fanta);
 								SVM_PAYMENTS.put(SVM_Options.fanta, ++paymentCounter);
 								LOGGER.info("Total payments triggered for Fanta: " +SVM_PAYMENTS.get(SVM_Options.fanta));
 								responseString = buildWebhookResponseString("Fanta Successfull");
-								new ProcessPushNitifications(SVM_Options.fanta).start();
+								new ProcessPushNitifications(URL,SVM_Options.fanta).start();
 							} else {
 								responseString = buildWebhookResponseString("Fanta Failed");
 							}
@@ -292,13 +308,13 @@ public class WebhookServiceController {
     }
 	
 	//Static Method to initiate payment for the given order
-	private static Boolean triggerPayment(final String actionID) throws IOException{
+	private static Boolean triggerPayment(final String URL,final String actionID) throws IOException{
 		String responseBody = null;
 		CloseableHttpClient httpclient = HttpClients.createDefault();
 		Boolean triggerResult = false;
 		try {
 			//Instantiate HTTP Post
-	        HttpPost httpPost = new HttpPost(SVM_Actions_URL);
+	        HttpPost httpPost = new HttpPost(URL);
 	            
 	        //Prepare Post Body
 	        String actionString = "{\" actionID \" : \"" + actionID + "\" } ";
@@ -323,7 +339,7 @@ public class WebhookServiceController {
 	        }
 		}
 		catch(Exception e){
-			String exceptionMsg = String.format("Exception caught during performing POST Call with URL: %s " , SVM_Actions_URL);
+			String exceptionMsg = String.format("Exception caught during performing POST Call with URL: %s " , SVM1_Actions_URL);
 			LOGGER.severe(exceptionMsg);
 			LOGGER.severe(ExceptionUtils.getStackTrace(e));
 		}
@@ -347,15 +363,17 @@ public class WebhookServiceController {
 		private static final String SVM_Fanta_Push_NotifyID = "28DC87A5-A0E3-4C8D-9625-2ACDDAF6029A";
 		
 		private WebhookServiceController.SVM_Options selectedOption;
+		private String notificationURL;
 		
-		public ProcessPushNitifications(WebhookServiceController.SVM_Options option) {
+		public ProcessPushNitifications(String URL, WebhookServiceController.SVM_Options option) {
+			notificationURL = URL;
 			selectedOption = option;
 		}
 		
 		public void run() {
 			switch(selectedOption) {
 			case coffee :	try {
-								 if(ProcessPushNitifications.triggerPushNotification(SVM_Coffee_Push_NotifyID))
+								 if(ProcessPushNitifications.triggerPushNotification(notificationURL,SVM_Coffee_Push_NotifyID))
 									 LOGGER.info("Processed the push notification for Coffee order payment...");
 								 else
 									 LOGGER.warning("Push notification for Coffee order payment not processed!!!");
@@ -364,7 +382,7 @@ public class WebhookServiceController {
 							 }
 							break;
 			case tea :	 try {
-				 				if(ProcessPushNitifications.triggerPushNotification(SVM_Tea_Push_NotifyID))
+				 				if(ProcessPushNitifications.triggerPushNotification(notificationURL,SVM_Tea_Push_NotifyID))
 				 					LOGGER.info("Processed the push notification for Tea order payment...");
 				 				else
 				 					LOGGER.warning("Push notification for Tea order payment not processed!!!");
@@ -373,7 +391,7 @@ public class WebhookServiceController {
 			 				}
 							break;
 			case milk :	 try {
- 								if(ProcessPushNitifications.triggerPushNotification(SVM_Milk_Push_NotifyID))
+ 								if(ProcessPushNitifications.triggerPushNotification(notificationURL,SVM_Milk_Push_NotifyID))
  									LOGGER.info("Processed the push notification for Milk order payment...");
  								else
  									LOGGER.warning("Push notification for Milk order payment not processed!!!");
@@ -382,7 +400,7 @@ public class WebhookServiceController {
 							}
 							break;
 			case coke :	 try {
-								if(ProcessPushNitifications.triggerPushNotification(SVM_Coke_Push_NotifyID))
+								if(ProcessPushNitifications.triggerPushNotification(notificationURL,SVM_Coke_Push_NotifyID))
 									LOGGER.info("Processed the push notification for 500ml Coke order payment...");
 								else
 									LOGGER.warning("Push notification for 500ml Coke order payment not processed!!!");
@@ -391,7 +409,7 @@ public class WebhookServiceController {
 							}
 							break;
 			case pepsi :	 try {
-								if(ProcessPushNitifications.triggerPushNotification(SVM_Pepsi_Push_NotifyID))
+								if(ProcessPushNitifications.triggerPushNotification(notificationURL,SVM_Pepsi_Push_NotifyID))
 									LOGGER.info("Processed the push notification for 500ml Pepsi order payment...");
 								else
 									LOGGER.warning("Push notification for 500ml Pepsi order payment not processed!!!");
@@ -400,7 +418,7 @@ public class WebhookServiceController {
 							}
 							break;
 			case fanta :	 try {
-								if(ProcessPushNitifications.triggerPushNotification(SVM_Fanta_Push_NotifyID))
+								if(ProcessPushNitifications.triggerPushNotification(notificationURL,SVM_Fanta_Push_NotifyID))
 									LOGGER.info("Processed the push notification for 500ml Fanta order payment...");
 								else
 									LOGGER.warning("Push notification for 500ml Fanta order payment not processed!!!");
@@ -412,13 +430,13 @@ public class WebhookServiceController {
 		}
 		
 		//Static Method to initiate payment for the given order
-		private static Boolean triggerPushNotification(final String notificationID) throws IOException{
+		private static Boolean triggerPushNotification(final String URL,final String notificationID) throws IOException{
 			String responseBody = null;
 			CloseableHttpClient httpclient = HttpClients.createDefault();
 			Boolean triggerResult = false;
 			try {
 				//Instantiate HTTP Post
-		        HttpPost httpPost = new HttpPost(SVM_Actions_URL);
+		        HttpPost httpPost = new HttpPost(URL);
 		            
 		        //Prepare Post Body
 		        String actionString = "{\" actionID \" : \"" + notificationID + "\" } ";
@@ -443,7 +461,7 @@ public class WebhookServiceController {
 		        }
 			}
 			catch(Exception e){
-				String exceptionMsg = String.format("Exception caught during performing POST Call with URL: %s " , SVM_Actions_URL);
+				String exceptionMsg = String.format("Exception caught during performing POST Call with URL: %s " , SVM1_Actions_URL);
 				LOGGER.severe(exceptionMsg);
 				LOGGER.severe(ExceptionUtils.getStackTrace(e));
 			}

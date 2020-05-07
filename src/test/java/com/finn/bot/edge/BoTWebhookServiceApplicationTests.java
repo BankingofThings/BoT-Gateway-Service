@@ -1,4 +1,4 @@
-package com.finn.bot.webhook;
+package com.finn.bot.edge;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
